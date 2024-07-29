@@ -5,6 +5,16 @@ const orderSchema= new mongoose.Schema({
       type: mongoose.Schema.ObjectId,
       ref: 'User'
     },
+    products: [{
+      product: {
+          type: mongoose.Schema.ObjectId,
+          ref: 'Product'
+      },
+      quantity: {
+          type: Number,
+          required: true
+      }
+    }],
     totalPrice: {
       type: Number,
       required: [true, "Order must have a total price 💵"]
@@ -36,7 +46,11 @@ const orderSchema= new mongoose.Schema({
       type: String,
       required: [true, "Order must have a payment method 💳"],
       enum: ['cash on delivery', 'credit']
-    }
+    },
+    sellers: [{
+      type: mongoose.Schema.ObjectId,
+      ref: 'User'
+  }]
   },{
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
@@ -45,19 +59,14 @@ const orderSchema= new mongoose.Schema({
 
 orderSchema.index({ date: 1, status: 1});
 
-//Virtual populate
-orderSchema.virtual('products', {
-    ref: 'Product',
-    foreignField: 'product',
-    localField: '_id'
-});
 
-orderSchema.virtual('sellers', {
-    ref: 'User',
-    foreignField: 'user',
-    localField: '_id',
-    select:'-__v -passwordChangedAt'
-});
+
+// orderSchema.virtual('sellers', {
+//     ref: 'User',
+//     foreignField: 'user',
+//     localField: '_id',
+//     select:'-__v -passwordChangedAt'
+// });
 
 orderSchema.pre(/^find/, function(next){
   

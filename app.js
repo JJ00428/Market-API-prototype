@@ -17,7 +17,7 @@ const cors = require('cors');
 
 const userRouter = require('./routes/userRoutes');
 const productRouter = require('./routes/productRoutes');
-// const orderRouter = require('./routes/orderRoutes');
+const orderRouter = require('./routes/orderRoutes');
 
 const app = express();
 
@@ -58,7 +58,7 @@ app.use(xss());
 
 app.use('/marketAPI/v1/users', userRouter);
 app.use('/marketAPI/v1/products', productRouter);
-// app.use('/marketAPI/v1/orders', orderRouter);
+app.use('/marketAPI/v1/orders', orderRouter);
 
 app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));

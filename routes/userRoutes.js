@@ -19,19 +19,16 @@ router.get("/MyAccount", userController.getMe, userController.getUser);
 router.patch("/updateMe", userController.updateMe);
 router.delete("/deleteMe", userController.deleteMe);
 
-//order all what's in the cart
-// router.get('/order',authController.restrictTo('Consumer'), userController.Purchase);
 
-//view Past Purchases
-// router.get('/pastPurchases', authController.restrictTo('Consumer'), userController.getPastPurchases);
+router.get('/MyOrders', authController.restrictTo('Consumer'), userController.getAllOrders);
+router.get('/:id/orders', authController.restrictTo('Admin'), userController.getCostumerOrders);
 
-//view Cart
 router
   .route("/cart")
   .get(authController.restrictTo("Consumer"), userController.getCart)
   .post(authController.restrictTo("Consumer"), userController.order);
 
-//view Favorite Items
+
 router.get(
   "/favorites",
   authController.restrictTo("Consumer"),

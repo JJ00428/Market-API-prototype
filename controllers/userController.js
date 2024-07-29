@@ -4,6 +4,9 @@ const catchAsync = require('./../utils/catchAsync');
 const AppError = require('./../utils/appError');
 const User = require('./../models/userModel');
 const Order = require('./../models/OrderModel');
+const Product = require('./../models/productModel');
+const APIFeatures = require('./../utils/apiFeatures');
+
 
 
 const filterObj = (obj, ...allowedFields) => {
@@ -146,13 +149,23 @@ exports.order = catchAsync(async (req, res, next) => {
     return next(new AppError('Invalid payment method ❌', 400));
   }
 
+  const products = user.cart.map(item => ({
+    product: item.product._id,
+    quantity: item.quantity
+  }));
+
+  //from cgpt
+  const sellers = [...new Set(user.cart.map(item => item.product.seller))];
+
   const newOrder = await Order.create({
     costumer: req.user.id,
+    products,
     totalPrice,
     Notes: notes,
     status: 'pending',
     date: Date.now(),
-    payment: paymentMethod
+    payment: paymentMethod,
+    sellers
   });
 
   // Add order ID to the seller's orders list
@@ -161,6 +174,24 @@ exports.order = catchAsync(async (req, res, next) => {
       await User.findByIdAndUpdate(item.product.seller, {
         $push: { orders: newOrder._id }
       });
+    }
+  }
+
+
+  // Update product quantities
+  for (const item of user.cart) {
+    if (item.product) {
+      const product = await Product.findById(item.product._id);
+      // console.log(product.quantity);
+      if (product) {
+        product.quantity -= item.quantity;
+        if (product.quantity < 0) {
+          product.quantity = 0;  // Prevent negative quantities
+        }
+        await product.save({ validateBeforeSave: false });
+        // console.log(product.quantity);
+
+      }
     }
   }
 
@@ -177,5 +208,66 @@ exports.order = catchAsync(async (req, res, next) => {
     data: {
       order: newOrder
     }
+  });
+});
+
+
+exports.getAllOrders = catchAsync(async (req, res, next) => {
+  
+  const user = await User.findById(req.user.id).populate({
+      path: 'orders',
+      select: '-costumer'
+  });
+
+  if (!user) {
+      return next(new AppError('User not found 🔍', 404));
+  }
+
+  // Create a query object for the populated orders (from cgpt)
+  let query = Order.find({ _id: { $in: user.orders } });
+
+  const features = new APIFeatures(query, req.query)
+      .filter()
+      .sort()
+      .limitFields()
+      .paginate();
+
+  const orders = await features.query;
+
+  res.status(200).json({
+      status: 'success',
+      results: orders.length,
+      orders
+     
+  });
+});
+
+exports.getCostumerOrders = catchAsync(async (req, res, next) => {
+  
+  const user = await User.findById(req.params.id).populate({
+      path: 'orders',
+      select: '-costumer'
+  });
+
+  if (!user) {
+      return next(new AppError('User not found 🔍', 404));
+  }
+
+  // Create a query object for the populated orders (from cgpt)
+  let query = Order.find({ _id: { $in: user.orders } });
+
+  const features = new APIFeatures(query, req.query)
+      .filter()
+      .sort()
+      .limitFields()
+      .paginate();
+
+  const orders = await features.query;
+
+  res.status(200).json({
+      status: 'success',
+      results: orders.length,
+      orders
+     
   });
 });
