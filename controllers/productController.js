@@ -7,6 +7,8 @@ const catchAsync = require('./../utils/catchAsync');
 const factory = require('./handlerFactory');
 
 
+
+
 exports.getAllProducts = factory.getAll(Product);
 
 exports.createProduct = catchAsync(async (req, res, next) => {
@@ -68,9 +70,9 @@ exports.deleteProduct = catchAsync(async (req, res, next) => {
     await Product.findByIdAndDelete(req.params.id);
   
     // remove product from user's cart
-    const result = await User.updateMany(
-        { 'cart.product': productId },
-        { $pull: { cart: { product: productId } } }
+    await User.updateMany(
+        { 'cart.product': req.params.id },
+        { $pull: { cart: { product: req.params.id } } }
       );
 
     res.status(204).json({
@@ -99,7 +101,7 @@ exports.addToCart = catchAsync(async (req, res, next) => {
     // console.log(product.quantity);
     // console.log((quantity*1));
     if(quantity > product.quantity){
-        return next(new AppError('Not enough quantity available 🔢❌', 400));
+        return next(new AppError('Not enough stock available 🔢❌', 400));
     }
   
     const user = await User.findById(req.user.id);
@@ -109,7 +111,9 @@ exports.addToCart = catchAsync(async (req, res, next) => {
     if (existingCartItem) {
       existingCartItem.quantity += quantity;
     } else {
-      user.cart.push({ product: productId, quantity });
+      const price = product.price
+      const seller = product.seller
+      user.cart.push({ product: productId, quantity,price,seller });
     }
   
     await user.save({ validateBeforeSave: false });
@@ -153,37 +157,3 @@ exports.favoriteItem = catchAsync(async (req, res, next) => {
     });
   });
 
-
-// exports.getProductStats = catchAsync( async (req, res, next) => {
-//       const stats = await Product.aggregate([
-//         {
-//           $match: { ratingsAverage: { $gte: 4.5 } }
-//         },
-//         {
-//           $group: {
-//             _id: { $toUpper: '$difficulty' },
-//             // _id:{'$difficulty'},
-//             numProducts: { $sum: 1 },
-//             numRatings: { $sum: '$ratingsQuantity' },
-//             avgRating: { $avg: '$ratingsAverage' },
-//             avgPrice: { $avg: '$price' },
-//             minPrice: { $min: '$price' },
-//             maxPrice: { $max: '$price' }
-//           }
-//         },
-//         {
-//           $sort: { avgPrice: 1 }
-//         }
-//         // {
-//         //   $match: { _id: { $ne: 'EASY' } }
-//         // }
-//       ]);
-  
-//       res.status(200).json({
-//         status: 'success',
-//         data: {
-//           stats
-//         }
-//       });
-   
-//   });

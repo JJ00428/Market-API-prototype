@@ -2,6 +2,8 @@ const express = require('express');
 const morgan = require('morgan');
 const hpp = require('hpp');
 const cookieParser = require('cookie-parser');
+const bodyParser = require('body-parser');
+
 
 const fs = require('fs');
 const AppError = require('./utils/appError');
@@ -32,6 +34,12 @@ app.use('/marketAPI', limiter);
 
 // BODY PARSER, reading data from body into req.body
 app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true }));
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+
 app.use(cookieParser());
 
 // DATA SANITIZATION AGAINST NOSQL QUERY INJECTION

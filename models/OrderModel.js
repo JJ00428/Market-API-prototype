@@ -13,6 +13,17 @@ const orderSchema= new mongoose.Schema({
       quantity: {
           type: Number,
           required: true
+      },
+      price: {
+          type: Number,
+          required: true
+      },
+      priceDiscount: {
+        type: Number
+      },
+      seller: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'User'
       }
     }],
     totalPrice: {
@@ -46,11 +57,12 @@ const orderSchema= new mongoose.Schema({
       type: String,
       required: [true, "Order must have a payment method 💳"],
       enum: ['cash on delivery', 'credit']
-    },
-    sellers: [{
-      type: mongoose.Schema.ObjectId,
-      ref: 'User'
-  }]
+    }
+  //   ,
+  //   sellers: [{
+  //     type: mongoose.Schema.ObjectId,
+  //     ref: 'User'
+  // }]
   },{
     toJSON: { virtuals: true },
     toObject: { virtuals: true }

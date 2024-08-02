@@ -9,13 +9,15 @@ const APIFeatures = require('./../utils/apiFeatures');
 
 
 
+
+
 const filterObj = (obj, ...allowedFields) => {
     const newObj = {};
     Object.keys(obj).forEach(el => {
       if (allowedFields.includes(el)) newObj[el] = obj[el];
     });
     return newObj;
-  };
+};
 
 
 exports.getMe = (req, res, next) => {
@@ -72,8 +74,8 @@ exports.deleteUser = factory.deleteOne(User);
 exports.getCart = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id).populate({
     path: 'cart.product',
-    model: 'Product'
-    // select: "__v"
+    model: 'Product',
+    select: "name description image cover seller"
   });
 
   // Debugging: Log the retrieved user data
@@ -85,17 +87,15 @@ exports.getCart = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: 'success',
-    data: {
-      cart: user.cart
-    }
+    cart: user.cart
   });
 });
 
 exports.getFavs = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id).populate({
     path: 'favorites',
-    model: 'Product'
-    // select: "__v"
+    model: 'Product',
+    select: "name description image cover seller"
   });
 
   if (!user) {
@@ -118,7 +118,7 @@ exports.order = catchAsync(async (req, res, next) => {
   // Find the user and populate the cart with product details
   const user = await User.findById(req.user.id).populate({
     path: 'cart.product',
-    select: 'price seller'
+    select: 'name price description'
   });
 
   if (!user || user.cart.length === 0) {
@@ -129,7 +129,7 @@ exports.order = catchAsync(async (req, res, next) => {
     // console.log(`Product Price: ${item.product.price}, Quantity: ${item.quantity}`);
 
     if (item.product) {
-      return acc + item.product.price * item.quantity;
+      return acc + (item.product.priceDiscount ?? item.product.price) * item.quantity;
     }
     return acc;
   }, 0);
@@ -149,13 +149,20 @@ exports.order = catchAsync(async (req, res, next) => {
     return next(new AppError('Invalid payment method ❌', 400));
   }
 
-  const products = user.cart.map(item => ({
-    product: item.product._id,
-    quantity: item.quantity
+  const products = await Promise.all(user.cart.map(async item => {
+    const product = await Product.findById(item.product._id);
+    return {
+      product: product._id,
+      quantity: item.quantity,
+      price: product.price,
+      priceDiscount: product.priceDiscount,
+      seller: product.seller
+    };
   }));
 
+
   //from cgpt
-  const sellers = [...new Set(user.cart.map(item => item.product.seller))];
+  // const sellers = [...new Set(user.cart.map(item => item.product.seller))];
 
   const newOrder = await Order.create({
     costumer: req.user.id,
@@ -164,18 +171,10 @@ exports.order = catchAsync(async (req, res, next) => {
     Notes: notes,
     status: 'pending',
     date: Date.now(),
-    payment: paymentMethod,
-    sellers
+    payment: paymentMethod
+    // ,sellers
   });
 
-  // Add order ID to the seller's orders list
-  for (const item of user.cart) {
-    if (item.product) {
-      await User.findByIdAndUpdate(item.product.seller, {
-        $push: { orders: newOrder._id }
-      });
-    }
-  }
 
 
   // Update product quantities
@@ -195,9 +194,6 @@ exports.order = catchAsync(async (req, res, next) => {
     }
   }
 
-  await User.findByIdAndUpdate(req.user.id, {
-    $push: { orders: newOrder._id }
-  });
 
   // Clear the user's cart
   user.cart = [];
@@ -213,61 +209,47 @@ exports.order = catchAsync(async (req, res, next) => {
 
 
 exports.getAllOrders = catchAsync(async (req, res, next) => {
-  
-  const user = await User.findById(req.user.id).populate({
-      path: 'orders',
-      select: '-costumer'
-  });
+  // console.log(req.user.id);
 
-  if (!user) {
-      return next(new AppError('User not found 🔍', 404));
-  }
 
-  // Create a query object for the populated orders (from cgpt)
-  let query = Order.find({ _id: { $in: user.orders } });
+  let query = Order.find({ costumer: req.user.id }).populate('products.product').select('-costumer -sellers');
 
+  // Apply filtering, sorting, limiting fields, and pagination
   const features = new APIFeatures(query, req.query)
-      .filter()
-      .sort()
-      .limitFields()
-      .paginate();
+    .filter()
+    .sort()
+    .limitFields()
+    .paginate();
 
+  // Execute the query
   const orders = await features.query;
 
+  // Send the response
   res.status(200).json({
-      status: 'success',
-      results: orders.length,
-      orders
-     
+    status: 'success',
+    results: orders.length,
+    orders
   });
 });
 
 exports.getCostumerOrders = catchAsync(async (req, res, next) => {
-  
-  const user = await User.findById(req.params.id).populate({
-      path: 'orders',
-      select: '-costumer'
-  });
 
-  if (!user) {
-      return next(new AppError('User not found 🔍', 404));
-  }
+  let query = Order.find({ costumer: req.params.id }).populate('products.product').select('-costumer -sellers');
 
-  // Create a query object for the populated orders (from cgpt)
-  let query = Order.find({ _id: { $in: user.orders } });
-
+  // Apply filtering, sorting, limiting fields, and pagination
   const features = new APIFeatures(query, req.query)
-      .filter()
-      .sort()
-      .limitFields()
-      .paginate();
+    .filter()
+    .sort()
+    .limitFields()
+    .paginate();
 
+  // Execute the query
   const orders = await features.query;
 
+  // Send the response
   res.status(200).json({
-      status: 'success',
-      results: orders.length,
-      orders
-     
+    status: 'success',
+    results: orders.length,
+    orders
   });
 });

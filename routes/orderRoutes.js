@@ -6,6 +6,7 @@ const router = express.Router();
 
 ////After this , all protected: ////
 router.use(authController.protect);
+router.use(authController.isActive);
 
 router
   .route("/:id")

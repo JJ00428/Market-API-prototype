@@ -1,66 +1,26 @@
 const mongoose = require('mongoose');
 const slugify = require('slugify');
 const User = require('./userModel');
+const Joi = require('joi');
 
 const productSchema= new mongoose.Schema({
-    name: {
-      type: String,
-      required: [true, "Product must have a name 📛"],
-      maxlength: [30, "A Product  name must have less than or equal to 40 characters 📛"],
-      minlength: [5, "A Product name must have more than or equal to 5 characters 📛"],
-      trim: true
-    },
-    ratingsAverage: {
-      type: Number,
-      default: 4.5,
-      min: [1, "Rating must be above 1.0 🔢"],
-      max: [5, "Rating must be below 5.0 🔢"],
-      set: val => Math.round(val * 10) / 10 //rounding ratings
-    },
-    ratingsQuantity: {
-      type: Number,
-      default: 0
-    },
-    price: {
-      type: Number,
-      required: [true, "Product must have a price 💵"]
-    },
-    priceDiscount:{ 
-      type: Number,
-      validate: { 
-       validator: function(val){
-            return val < this.price;
-      },
-  
-      message: "Discount price ({VALUE}) must be below price 📈"
-      }
-    },
-    description: {
-      type: String,
-      required: [true, "Product must have a description 📝"],
-      trim: true
-    },
+    name: String,
+    ratingsAverage: Number,
+    ratingsQuantity: Number,
+    price: Number,
+    priceDiscount: Number,
+    description: String,
     imageCover: {
       type: String,
       // required: [true, "Product must have a cover image 🖼️"]
     },
-    quantity:{
-      type: Number,
-      required: [true, "Product must have a quantity 🔢"]
-    },
+    quantity: Number,
     images: [String],
     seller:{
         type: mongoose.Schema.ObjectId,
         ref: 'User'
     },
-    category: {
-      type: String,
-      required: [true, "Product must have a category 📃"],
-      enum: {
-        values: ['Electronics', 'Clothing', 'Home & Garden', 'Sports & Outdoors', 'Books', 'Toys', 'Other'],
-        message: 'Product category must be one of the following: Electronics, Clothing, Home & Garden, Sports & Outdoors, Books, Toys, Other'
-      }
-    },
+    category: String,
     slug: String
   },{
     toJSON: { virtuals: true },
@@ -69,6 +29,7 @@ const productSchema= new mongoose.Schema({
 
 productSchema.index({ slug: 1});
 productSchema.index({ price: 1, ratingsAverage: -1 });
+productSchema.index({ seller: 1});
 
 
 //Virtual populate

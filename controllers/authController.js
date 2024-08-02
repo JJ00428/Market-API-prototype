@@ -25,7 +25,7 @@ const createSendToken = (user, statusCode, res) => {
     };
     if (process.env.NODE_ENV === 'production') 
         cookieOptions.secure = true;
-  
+    
     res.cookie('jwt', token, cookieOptions);
     // Remove password from output
     user.password = undefined;
@@ -40,12 +40,21 @@ const createSendToken = (user, statusCode, res) => {
   };
 
 exports.signup = catchAsync(async (req, res, next) => {
+    let activitiy;
+    if (req.body.role === 'Seller') {
+        // return next(new AppError('Admins are not allowed to register!', 403));
+        activitiy = false;
+    } else {
+        activitiy = true;
+    }
+
     const newUser = await User.create({
         username: req.body.username,
         email: req.body.email,
         password: req.body.password,
         passwordConfirm: req.body.passwordConfirm,
         role: req.body.role,
+        active: activitiy,
         address: req.body.address,
         certificate: req.body.certificate,
         passwordChangedAt: Date.now()
@@ -80,7 +89,6 @@ exports.login = catchAsync(async (req, res, next) => {
 exports.protect = catchAsync(async (req, res, next) => {
     //Check if token exists and get it
     let token;
-    // console.log("mclkms");
     if(req.headers.authorization && req.headers.authorization.startsWith('Bearer')){
         token = req.headers.authorization.split(' ')[1];
     } else if (req.cookies.jwt) {
@@ -90,7 +98,7 @@ exports.protect = catchAsync(async (req, res, next) => {
     if(!token){
         return next(new AppError('You are not logged in! Please log in ❌', 401));
     }
-
+    
     //Verify the token
     const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
 
@@ -111,6 +119,38 @@ exports.protect = catchAsync(async (req, res, next) => {
      
     next();
 });
+
+exports.isActive = catchAsync(async (req, res, next) => {
+    // console.log(req.user.active);
+    if(req.user.active === false && req.user.role === 'Seller'){
+        return next(new AppError('Your account has not yet been verified! Please contact support! 🪪🚫', 403));
+    } else if(req.user.active === false ){
+        return next(new AppError('Your account has been deactivated! Please contact support! 👤🚫', 403));
+    }
+    next();
+});
+
+exports.AllowSeller = catchAsync( async (req, res, next) => {
+    const sellerToAccept = await User.findById(req.params.id);
+    
+    if (!sellerToAccept) {
+      return next(new AppError('No user found with that ID👤❌', 404));
+    }
+  
+    if (!sellerToAccept.role ==='Seller') {
+      return next(new AppError('This user is not a Seller 🛒❌', 403));
+    }
+    sellerToAccept.active = true;
+    const data = await sellerToAccept.save({ validateBeforeSave: false });
+   return res.status(200).json({
+    status: 'success',
+    data: {
+        message: 'Seller Accepted',
+        data
+    }
+});
+  
+  });
 
 exports.restrictTo = (...roles) => {
     return (req, res, next) => {
@@ -211,3 +251,14 @@ exports.updatePassword = catchAsync(async (req, res , next) => {
     createSendToken(user, 200, res);
 
 });
+
+// exports.fixUser = catchAsync(async (req, res , next) => {
+//     const user = await User.findById(req.user.id);
+    
+//     if (user.role === 'Admin' || user.role === 'Seller') {
+//         delete user.favorites;
+//         delete user.cart;
+//     }
+
+//     user.save({ validateBeforeSave: false });
+// });

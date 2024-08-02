@@ -10,7 +10,7 @@ const APIFeatures = require('./../utils/apiFeatures');
 
 exports.getOrder = catchAsync(async (req, res, next) => {
     
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).populate('costumer products.product products.seller');;
   
     if (!order) {
       return next(new AppError('Order not found 🔍🛒', 404));
@@ -18,18 +18,37 @@ exports.getOrder = catchAsync(async (req, res, next) => {
 
     const user = await User.findById(req.user.id);
 
-    const isSeller = order.sellers.some(seller => seller.toString() === user._id.toString());
+    const isSeller = order.products.some(product => product.seller && product.seller._id.toString() === user._id.toString());
     
     if (user.role !== 'Admin' && !isSeller && order.costumer._id.toString() !== user._id.toString()) {
         return next(new AppError('You do not have permission to view this order 📵', 403));
     }
+
+    if (isSeller) {
+        order.products = order.products.filter(product => product.seller._id.toString() === user._id.toString());
+
+        const sellerTotalPrice = order.products.reduce((acc, product) => {
+            return acc + (product.price * product.quantity);
+          }, 0);
+      
+          res.status(200).json({
+            status: 'success',
+            data: {
+              order: {
+                ...order.toObject(), 
+                totalPrice: sellerTotalPrice 
+              }
+            }
+          });
+    } else {
   
-    res.status(200).json({
-      status: 'success',
-      data: {
-        status: order
-      }
-    });
+        res.status(200).json({
+        status: 'success',
+        data: {
+            status: order
+        }
+        });
+    }
   });
 
 exports.updateStatus = catchAsync(async (req, res, next) => {
@@ -63,7 +82,7 @@ exports.updateStatus = catchAsync(async (req, res, next) => {
         status: order
       }
     });
-  });
+});
 
 exports.cancelOrder = catchAsync(async (req, res, next) => {
     const order = await Order.findById(req.params.id);
@@ -74,7 +93,7 @@ exports.cancelOrder = catchAsync(async (req, res, next) => {
 
     const user = await User.findById(req.user.id);
 
-    const isSeller = order.sellers.some(seller => seller.toString() === user._id.toString());
+    const isSeller = order.products.some(item => item.seller.toString() === user._id.toString());
 
     // console.log(order.costumer._id);
     // console.log(user._id);
@@ -87,25 +106,16 @@ exports.cancelOrder = catchAsync(async (req, res, next) => {
     if (isSeller) {
         const productToRemove = req.body.productId;
         if (productToRemove) {
-            // Remove the product from the order and update notes
-
-            // const totalPrice = user.cart.reduce((acc, item) => {
-            //     // console.log(`Product Price: ${item.product.price}, Quantity: ${item.quantity}`);
-            
-            //     if (item.product) {
-            //       return acc + item.product.price * item.quantity;
-            //     }
-            //     return acc;
-            //   }, 0);
-
 
             const productRemoved = await Product.findById(productToRemove);
+            if (productRemoved.seller._id.toString() !== user._id.toString() ){
+                return next(new AppError('You are not authorized to remove this product from the order. 🚫', 403));
+            }
+            
             const item1 = order.products.find( item => item.product.toString() === productToRemove.toString() );
             
             
             if (productRemoved) {
-                // console.log(productRemoved.quantity);
-                // console.log(item1.quantity);
                 productRemoved.quantity += item1.quantity;
                 await productRemoved.save({ validateBeforeSave: false });
             }

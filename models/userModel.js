@@ -7,89 +7,20 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const usersSchema = new mongoose.Schema({
-    username: {
-        type: String,
-        required: [true, 'Please provide a username 🪪']
-    },
-    email: {
-        type: String,
-        required: [true, 'Please provide your email 📧'],
-        unique: true,
-        lowercase: true,
-        validate: [validator.isEmail, 'Please enter a valid email 📧']
-    },
-    role: {
-        type: String,
-        required: [true, 'Are you a  Consumer, Seller or an Admin? 😶‍🌫️'],
-        enum: ['Consumer','Seller','Admin']
-      },
-    password: {
-        type: String,
-        required: [true, 'Please provide a password 🔑'],
-        minlength: [8, "Password must be at least include 8 characters 🔑"],
-        select: false
-    },
-    passwordConfirm:{
-        type: String,
-        required: [true, 'Please confirm your password 🔑'],
-        validate: {
-            //ONLY WORKS ON CREATE AND SAVE!!
-            validator: function(el) {
-                return el === this.password;
-            },
-            message: 'Passwords do not match 🔑'
-        }
-    },
-    active: {
-        type: Boolean,
-        default: true,
-        select: false
-    },
+    username: String,
+    email: String,
+    role: String,
+    password: String,
+    passwordConfirm: String,
+    active:Boolean,
     favorites: [
-        {
-            type: mongoose.Schema.ObjectId,
-            ref: 'Product',
-            default: []
-        }
-    ],
-    address: {
-        type: String,
-        validate: {
-          validator: function(value) {
-            // If role is 'Consumer', address is required and must not be only whitespace
-            if (this.role === 'Consumer' && (!value || value.trim().length === 0)) {
-              return false;
-            }
-            return true;
-          },
-          message: 'Please enter your address 🏠'
-        }
-      },
-    products:[
         {
             type: mongoose.Schema.ObjectId,
             ref: 'Product'
         }
-        
     ],
-    orders:[
-        {
-            type: mongoose.Schema.ObjectId,
-            ref: 'Order'
-        }
-    ],
-    certificate:{
-        type: String,
-        validate: {
-          validator: function(value) {
-            if (this.role === 'Seller' && (!value || value.trim().length === 0)) {
-              return false;
-            }
-            return true;
-          },
-          message: 'Please enter your Certificate 📜'
-        }
-    },
+    address: String,
+    certificate: String,
     cart: [
         {
           product: {
@@ -99,7 +30,10 @@ const usersSchema = new mongoose.Schema({
           quantity: Number,
         },
     ],
-    photo: String,
+    photo: {
+      type: String,
+      default:"default-user.jpg"
+    },
     passwordChangedAt: Date,
     passwordResetToken: String,
     passwordResetExpires: Date
@@ -150,9 +84,15 @@ usersSchema.pre('save', function(next) {
 });
 
 usersSchema.pre(/^find/, function(next) {
-    this.find({ active: { $ne: false } });
-    next();
+  this.find({
+      $or: [
+          { active: { $ne: false } },
+          { role: 'Seller', active: false }
+      ]
+  });
+  next();
 });
+
 
 usersSchema.methods.correctPassword = async function(enteredPassword, userPassword){
     return await bcrypt.compare(enteredPassword, userPassword);
