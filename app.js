@@ -33,11 +33,14 @@ const limiter = rateLimit({
 app.use('/marketAPI', limiter);
 
 // BODY PARSER, reading data from body into req.body
+
+app.use(bodyParser.raw({ type: 'application/octet-stream', limit: '10mb' }));
+
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
 
 app.use(cookieParser());

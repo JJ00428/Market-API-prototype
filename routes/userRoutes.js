@@ -10,8 +10,8 @@ const router = express.Router();
 router.post(
   "/signup",
   joinController.createUserJoi,
-  multerController.uploadUserPhoto,
-  multerController.resizeUserPhoto,
+  // multerController.uploadUserPhoto,
+  // multerController.resizeUserPhoto,
   authController.signup
   // ,authController.fixUser
 );
@@ -24,13 +24,16 @@ router.patch("/resetPassword/:token", authController.resetPassword);
 router.use(authController.protect);
 router.use(authController.isActive);
 
+router.post("/uploadImages", [multerController.uploadAllImages, multerController.resizeAllImages] , multerController.setImages);
+
+
 router.patch("/updateMyPassword", authController.updatePassword);
 
 router.get("/MyAccount", userController.getMe, userController.getUser);
 router.patch(
   "/updateMe",
-  multerController.uploadUserPhoto,
-  multerController.resizeUserPhoto,
+  // multerController.uploadUserPhoto,
+  // multerController.resizeUserPhoto,
   userController.updateMe
 );
 router.delete("/deleteMe", userController.deleteMe);

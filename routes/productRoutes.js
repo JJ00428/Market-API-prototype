@@ -20,8 +20,8 @@ router
     [
       authController.restrictTo("Admin", "Seller"),
       joiController.createProductJoi,
-      multerController.uploadProductImages,
-      multerController.resizeProductImages,
+      // multerController.uploadProductImages,
+      // multerController.resizeProductImages,
     ],
     productController.createProduct
   );
@@ -31,8 +31,8 @@ router
   .get(productController.getProduct)
   .patch(
     authController.restrictTo("Admin", "Seller"),
-    multerController.uploadProductImages,
-    multerController.resizeProductImages,
+    // multerController.uploadAllImages,
+    // multerController.resizeProductImages,
     productController.updateProduct
   )
   .post(authController.restrictTo("Consumer"), productController.addToCart)

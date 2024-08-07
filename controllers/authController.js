@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const { promisify } = require('util');
 const jwt = require('jsonwebtoken');
 const catchAsync = require('./../utils/catchAsync');
+const axios = require('axios');
+const multer = require('multer');
 
 const sendEmail = require('./../utils/email');
 
@@ -13,6 +15,7 @@ const signToken =  id => {
         expiresIn: process.env.JWT_EXPIRES_IN
     });
 }
+
 
 const createSendToken = (user, statusCode, res) => {
     const token = signToken(user._id);
@@ -34,12 +37,15 @@ const createSendToken = (user, statusCode, res) => {
       status: 'success',
       token,
       data: {
-        user
+        user 
       }
     });
   };
 
 exports.signup = catchAsync(async (req, res, next) => {
+
+    // console.log(req);
+
     let activitiy;
     if (req.body.role === 'Seller') {
         // return next(new AppError('Admins are not allowed to register!', 403));
@@ -59,6 +65,19 @@ exports.signup = catchAsync(async (req, res, next) => {
         certificate: req.body.certificate,
         passwordChangedAt: Date.now()
     });
+
+    // console.log(newUser);
+
+    // if (req.files && req.files.photo) {
+    //     const response = await axios.post('http://localhost:3000/marketAPI/v1/users/uploadImages', req.files.photo[0].buffer, {
+    //         headers: { 'Content-Type': 'multipart/form-data' }
+    //     });
+    // }
+
+
+
+
+    // const DataFromPhotos = response.data;
 
 
     createSendToken(newUser, 201, res);
@@ -121,7 +140,7 @@ exports.protect = catchAsync(async (req, res, next) => {
 });
 
 exports.isActive = catchAsync(async (req, res, next) => {
-    // console.log(req.user.active);
+    // console.log(req.user);
     if(req.user.active === false && req.user.role === 'Seller'){
         return next(new AppError('Your account has not yet been verified! Please contact support! 🪪🚫', 403));
     } else if(req.user.active === false ){
